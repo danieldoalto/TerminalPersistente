@@ -1,0 +1,22 @@
+[project]
+name = "terminal-session-manager"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Daniel Alejandro", email = "danieldoalto@yahoo.com.br" }
+]
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+terminal-session-manager = "terminal_session_manager.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

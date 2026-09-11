@@ -1,0 +1,22 @@
+{
+  "0": "terminal_session_manager/__init__.py",
+  "1": "test_contracts.py",
+  "2": "Session",
+  "3": "Job",
+  "4": "LocalSession",
+  "5": "Terminal Session Manager — Especificação do Projeto",
+  "6": "Device",
+  "7": "SqliteStorage",
+  "8": "TerminalTransport",
+  "9": "sqlite.py",
+  "10": "EventType",
+  "11": "Event",
+  "12": "Relatório — Etapa 0: Contrato e Esqueleto",
+  "13": "SqliteEventRepository",
+  "14": "Relatório — Etapa 2: Persistência e Histórico",
+  "15": "ValidationError",
+  "16": "Relatório — Etapa 1: Sessão Local Mínima",
+  "17": "FakeTransport",
+  "18": "main.py",
+  "19": "terminal-session-manager"
+}
