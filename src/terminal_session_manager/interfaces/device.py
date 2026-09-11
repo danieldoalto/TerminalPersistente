@@ -30,3 +30,12 @@ class DeviceRepository(Protocol):
     def deactivate(self, device_id: str) -> None:
         """Logically deactivates a device by ID."""
         ...
+
+    def remove(self, device_id: str) -> None:
+        """Logically removes a device by ID."""
+        ...
+
+    def list_all(self, include_deleted: bool = False) -> list[Device]:
+        """Lists all registered devices, optionally including deleted ones."""
+        ...
+

@@ -1,6 +1,7 @@
 """Persistence package providing concrete repositories."""
 
 from terminal_session_manager.persistence.sqlite import (
+    SqliteDeviceRepository,
     SqliteEventRepository,
     SqliteJobRepository,
     SqliteSessionRepository,
@@ -8,6 +9,7 @@ from terminal_session_manager.persistence.sqlite import (
 )
 
 __all__ = [
+    "SqliteDeviceRepository",
     "SqliteEventRepository",
     "SqliteJobRepository",
     "SqliteSessionRepository",

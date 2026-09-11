@@ -1,0 +1,41 @@
+# Terminal Session Manager — Configuração Padrão
+#
+# Todas as configurações abaixo podem ser sobrescritas por variáveis de ambiente (TSM_*).
+# AVISO DE SEGURANÇA: NUNCA armazene senhas, tokens ou segredos em texto puro neste arquivo.
+
+server:
+  # Endereço de escuta da API HTTP (127.0.0.1 garante escuta estritamente local)
+  host: "127.0.0.1"
+  # Porta TCP para serviço HTTP
+  port: 8000
+  # Token de autenticação da API (recomendado passar via env TSM_API_TOKEN)
+  api_token: ""
+
+storage:
+  # Caminho do banco de dados SQLite persistente
+  db_path: ".tsm/tsm.db"
+
+security:
+  # Exigir autenticação Bearer ou X-API-Key para requisições na API HTTP
+  require_auth: false
+  # A chave de proteção em repouso deve ser fornecida via variável de ambiente TSM_MASTER_KEY
+
+sessions:
+  # Timeout padrão para leitura de sessões interativas em segundos
+  default_read_timeout: 0.5
+  # Limite máximo padrão de bytes a ler por operação
+  max_read_bytes: 4096
+  # Encerrar sessões ativas no shutdown da aplicação
+  cleanup_on_shutdown: true
+
+jobs:
+  # Timeout máximo padrão para jobs assíncronos em segundos
+  default_timeout: 60.0
+  # Reconciliar jobs órfãos marcando-os como FAILED na inicialização
+  recover_orphaned_on_start: true
+
+history:
+  # Limite padrão de eventos por requisição paginada
+  default_event_limit: 50
+  # Limite teto permitido para paginação de eventos
+  max_event_limit: 200

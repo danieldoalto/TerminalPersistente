@@ -12,6 +12,10 @@ from terminal_session_manager.interfaces.persistence import (
 from terminal_session_manager.interfaces.transport import TerminalTransport
 from terminal_session_manager.models.event import Event, EventType
 from terminal_session_manager.models.session import Session, SessionStatus
+from terminal_session_manager.services.device_service import (
+    DeviceService,
+    ResolvedConnection,
+)
 from terminal_session_manager.transports.local_process import LocalProcessTransport
 
 
@@ -30,12 +34,39 @@ class LocalSession:
         session_repo: SessionRepository | None = None,
         event_repo: EventRepository | None = None,
         encoding: str = "utf-8",
+        device_service: DeviceService | None = None,
+        device_identifier: str | None = None,
+        resolved_connection: ResolvedConnection | None = None,
+        sensitive_tokens: list[str | bytes] | None = None,
     ) -> None:
         self.session = session or Session()
         self.transport = transport or LocalProcessTransport()
         self.session_repo = session_repo
         self.event_repo = event_repo
         self.encoding = encoding
+        self.device_service = device_service
+        self.resolved_connection = resolved_connection
+
+        # Resolve device if identifier and service are provided
+        if self.resolved_connection is None and self.device_service and device_identifier:
+            self.resolved_connection = self.device_service.resolve_connection(device_identifier)
+
+        if self.resolved_connection is not None:
+            self.session.device_id = self.resolved_connection.device_id
+
+        # Internal sensitive token tracking for output/input redaction
+        self._sensitive_tokens: list[str] = []
+        if self.resolved_connection and self.resolved_connection.secret:
+            sec = self.resolved_connection.secret
+            sec_str = sec if isinstance(sec, str) else sec.decode(self.encoding, errors="ignore")
+            if sec_str:
+                self._sensitive_tokens.append(sec_str)
+
+        if sensitive_tokens:
+            for tok in sensitive_tokens:
+                tok_str = tok if isinstance(tok, str) else tok.decode(self.encoding, errors="ignore")
+                if tok_str:
+                    self._sensitive_tokens.append(tok_str)
 
         # Determine starting sequence number for events
         self._sequence = 0
@@ -45,8 +76,9 @@ class LocalSession:
                 self._sequence = latest + 1
 
         # Initial persistence if repo provided
-        if self.session_repo is not None and self.session_repo.get_by_id(self.session.id) is None:
+        if self.session_repo is not None:
             self._persist_session()
+
 
     @property
     def id(self) -> str:
@@ -110,6 +142,16 @@ class LocalSession:
             )
             raise
 
+    def _mask_text(self, text: str) -> tuple[str, bool]:
+        """Scans and redacts configured sensitive tokens from text."""
+        is_masked = False
+        result = text
+        for token in self._sensitive_tokens:
+            if token and token in result:
+                result = result.replace(token, "[REDACTED]")
+                is_masked = True
+        return result, is_masked
+
     def write(self, data: bytes | str, is_sensitive: bool = False) -> int:
         """Writes data to the session transport channel and records STDIN event."""
         self.poll_status()
@@ -121,18 +163,26 @@ class LocalSession:
         raw_bytes = data.encode(self.encoding) if isinstance(data, str) else data
         written = self.transport.write(raw_bytes)
 
+        text = (
+            data
+            if isinstance(data, str)
+            else data.decode(self.encoding, errors="replace")
+        )
+        masked_text, had_mask = self._mask_text(text)
+
         if is_sensitive:
             self._record_event(
                 EventType.STDIN,
                 payload="[REDACTED]",
                 is_masked=True,
             )
-        else:
-            text = (
-                data
-                if isinstance(data, str)
-                else data.decode(self.encoding, errors="replace")
+        elif had_mask:
+            self._record_event(
+                EventType.STDIN,
+                payload=masked_text,
+                is_masked=True,
             )
+        else:
             self._record_event(EventType.STDIN, payload=text, is_masked=False)
 
         return written
@@ -142,7 +192,8 @@ class LocalSession:
         data = self.transport.read(max_bytes=max_bytes, timeout=timeout)
         if data:
             text = data.decode(self.encoding, errors="replace")
-            self._record_event(EventType.STDOUT, payload=text, is_masked=False)
+            masked_text, is_masked = self._mask_text(text)
+            self._record_event(EventType.STDOUT, payload=masked_text, is_masked=is_masked)
 
         self.poll_status()
         return data
@@ -151,6 +202,7 @@ class LocalSession:
         """Convenience method to read decoded text from the session."""
         raw = self.read(max_bytes=max_bytes, timeout=timeout)
         return raw.decode(self.encoding, errors="replace")
+
 
     def resize(self, rows: int, cols: int) -> None:
         """Resizes the terminal window dimensions."""

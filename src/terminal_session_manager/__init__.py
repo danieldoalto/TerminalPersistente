@@ -2,8 +2,25 @@
 
 __version__ = "0.1.0"
 
+from terminal_session_manager.api import APIServer, TSMRequestHandler
+from terminal_session_manager.app import TSMApplication
+from terminal_session_manager.config import (
+    ConfigurationError,
+    HistoryConfig,
+    JobsConfig,
+    SecurityConfig,
+    ServerConfig,
+    SessionsConfig,
+    StorageConfig,
+    TSMConfig,
+    load_config,
+    validate_config,
+)
+from terminal_session_manager.mcp import create_mcp_server
 from terminal_session_manager.errors import (
     CredentialNotFoundError,
+    CredentialResolutionError,
+    DeviceInactiveError,
     DeviceNotFoundError,
     DomainError,
     EntityNotFoundError,
@@ -16,6 +33,15 @@ from terminal_session_manager.errors import (
     TransportNotOpenError,
     TransportTimeoutError,
     ValidationError,
+)
+from terminal_session_manager.interfaces import (
+    CredentialResolver,
+    DeviceRepository,
+    EventRepository,
+    ExternalCredentialProvider,
+    JobRepository,
+    SessionRepository,
+    TerminalTransport,
 )
 from terminal_session_manager.models import (
     ConnectionMethod,
@@ -31,44 +57,77 @@ from terminal_session_manager.models import (
     SessionStatus,
 )
 from terminal_session_manager.persistence import (
+    SqliteDeviceRepository,
     SqliteEventRepository,
     SqliteJobRepository,
     SqliteSessionRepository,
     SqliteStorage,
 )
-from terminal_session_manager.services import LocalSession
+from terminal_session_manager.services import (
+    DelegatingCredentialResolver,
+    DeviceService,
+    JobService,
+    LocalSession,
+    ProtectedLocalCredentialStore,
+    ResolvedConnection,
+    SessionService,
+)
 from terminal_session_manager.transports import LocalProcessTransport
 
 __all__ = [
     "__version__",
+    "APIServer",
+    "ConfigurationError",
     "ConnectionMethod",
     "CredentialNotFoundError",
     "CredentialRef",
+    "CredentialResolutionError",
+    "CredentialResolver",
     "CredentialType",
+    "create_mcp_server",
+    "DelegatingCredentialResolver",
     "Device",
+    "DeviceInactiveError",
     "DeviceNotFoundError",
+    "DeviceRepository",
+    "DeviceService",
     "DeviceType",
     "DomainError",
     "EntityNotFoundError",
     "Event",
+    "EventRepository",
     "EventType",
+    "ExternalCredentialProvider",
     "InvalidStateError",
     "InvalidStateTransitionError",
     "Job",
     "JobNotFoundError",
+    "JobRepository",
+    "JobService",
     "JobStatus",
+    "load_config",
     "LocalProcessTransport",
     "LocalSession",
+    "ProtectedLocalCredentialStore",
+    "ResolvedConnection",
     "Session",
     "SessionNotFoundError",
+    "SessionRepository",
+    "SessionService",
     "SessionStatus",
+    "SqliteDeviceRepository",
     "SqliteEventRepository",
     "SqliteJobRepository",
     "SqliteSessionRepository",
     "SqliteStorage",
+    "TSMApplication",
+    "TSMConfig",
+    "TSMRequestHandler",
+    "TerminalTransport",
     "TransportClosedError",
     "TransportError",
     "TransportNotOpenError",
     "TransportTimeoutError",
+    "validate_config",
     "ValidationError",
 ]

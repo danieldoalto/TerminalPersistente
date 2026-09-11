@@ -64,6 +64,19 @@ class CredentialNotFoundError(EntityNotFoundError):
         super().__init__("CredentialRef", credential_ref_id)
 
 
+class DeviceInactiveError(DomainError):
+    """Raised when an operation targets a deactivated or removed device."""
+
+    def __init__(self, device_identifier: str) -> None:
+        super().__init__(f"Device '{device_identifier}' is inactive or deleted.")
+        self.device_identifier = device_identifier
+
+
+class CredentialResolutionError(DomainError):
+    """Raised when resolving a credential secret fails or integrity check fails."""
+
+
+
 class ValidationError(DomainError):
     """Raised when entity validation fails."""
 

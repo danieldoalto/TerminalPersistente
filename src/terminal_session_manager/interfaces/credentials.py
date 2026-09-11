@@ -23,3 +23,17 @@ class CredentialResolver(Protocol):
     def get_ref(self, ref_id: str) -> CredentialRef | None:
         """Retrieves only non-sensitive metadata for a credential reference."""
         ...
+
+
+@runtime_checkable
+class ExternalCredentialProvider(Protocol):
+    """Contract for delegating credential resolution to an external provider."""
+
+    def resolve_secret(self, ref_id: str) -> str | bytes | None:
+        """Resolves secret from external provider. Returns None if not handled."""
+        ...
+
+    def get_ref(self, ref_id: str) -> CredentialRef | None:
+        """Retrieves metadata from external provider, or None if not handled."""
+        ...
+

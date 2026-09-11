@@ -7,10 +7,15 @@ authors = [
     { name = "Daniel Alejandro", email = "danieldoalto@yahoo.com.br" }
 ]
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "fastmcp>=4.0.3",
+    "pyyaml>=6.0.2",
+]
 
 [project.scripts]
 terminal-session-manager = "terminal_session_manager.main:main"
+terminal-session-manager-mcp = "terminal_session_manager.mcp.server:main"
+
 
 [build-system]
 requires = ["hatchling"]

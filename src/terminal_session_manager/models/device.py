@@ -45,6 +45,7 @@ class Device:
     options: dict[str, Any] = field(default_factory=dict)
     credential_ref_id: str | None = None
     is_active: bool = True
+    is_deleted: bool = False
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -76,3 +77,10 @@ class Device:
         """Deactivates device logically without deleting historical references."""
         self.is_active = False
         self.updated_at = datetime.now(timezone.utc)
+
+    def remove(self) -> None:
+        """Marks device as logically removed without deleting historical references."""
+        self.is_deleted = True
+        self.is_active = False
+        self.updated_at = datetime.now(timezone.utc)
+

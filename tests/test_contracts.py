@@ -123,12 +123,23 @@ class InMemoryDeviceRepository:
         return None
 
     def list_active(self) -> list[Device]:
-        return [d for d in self._devices.values() if d.is_active]
+        return [d for d in self._devices.values() if d.is_active and not d.is_deleted]
 
     def deactivate(self, device_id: str) -> None:
         device = self._devices.get(device_id)
         if device is not None:
             device.deactivate()
+
+    def remove(self, device_id: str) -> None:
+        device = self._devices.get(device_id)
+        if device is not None:
+            device.remove()
+
+    def list_all(self, include_deleted: bool = False) -> list[Device]:
+        if include_deleted:
+            return list(self._devices.values())
+        return [d for d in self._devices.values() if not d.is_deleted]
+
 
 
 class InMemoryCredentialResolver:

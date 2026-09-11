@@ -29,6 +29,7 @@ htmlcov/
 *.db-wal
 *.db-shm
 data/
+.tsm/
 
 # Environment and secrets
 .env
