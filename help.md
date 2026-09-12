@@ -125,10 +125,17 @@ Quando a API estiver em execução (`uv run terminal-session-manager api`), voc�
 ### Exemplos Práticos via `curl`
 
 #### 1. Criar uma Nova Sessão
+Para abrir uma sessão no terminal local nativo da máquina, basta informar o nome (o campo `device_identifier` é opcional e, se omitido, inicia o shell local diretamente):
 ```bash
+# Sessão no terminal local nativo (sem precisar cadastrar dispositivo)
 curl -X POST http://127.0.0.1:8000/sessions \
   -H "Content-Type: application/json" \
   -d '{"name": "sessao-trabalho"}'
+
+# Ou sessão em dispositivo SSH remoto cadastrado
+curl -X POST http://127.0.0.1:8000/sessions \
+  -H "Content-Type: application/json" \
+  -d '{"name": "sessao-remota", "device_identifier": "maclinux"}'
 ```
 *Resposta:*
 ```json
@@ -368,5 +375,9 @@ Existem 3 formas seguras e padronizadas no TSM:
 1. **Pelo utilitário interativo:** Execute `uv run python scripts/manage_devices.py`, selecione a opção `9` e escolha Upload, Download ou Teste Rápido.
 2. **Pela API HTTP REST:** Envie uma requisição `POST /scp/upload` ou `POST /scp/download` informando o nickname do dispositivo (retorna `HTTP 202` com o `Job` assíncrono criado).
 3. **Por Agentes Inteligentes via MCP:** O agente invoca a ferramenta `scp_upload` ou `scp_download` informando apenas o nickname do dispositivo (ex: `"maclinux"`), acompanhando o progresso através de `wait_job`. As credenciais e chaves são resolvidas internamente pelo cofre criptografado sem exposição.
+
+### Preciso cadastrar um dispositivo para conectar ao terminal local?
+**Não.** O terminal local é o comportamento nativo padrão do TSM. Sempre que você omitir o parâmetro `device_identifier` (ou passar `null`/`None`), o TSM inicia diretamente o shell da máquina host (`cmd.exe` no Windows ou `/bin/sh` no Linux/macOS) através do `LocalProcessTransport`. O catálogo de dispositivos é necessário apenas para máquinas remotas acessadas via SSH (ou caso queira rotular organizacionamente a máquina local como um dispositivo com método `local`).
+
 
 

@@ -79,9 +79,9 @@ Use devices to run sessions or jobs on remote machines via SSH or locally.
 Use sessions for interactive command lines or multi-step shell dialogues.
 
 - **`create_session(name="default", device_identifier=None)`**: Creates and starts a terminal session.
-  - To connect locally: omit `device_identifier`.
-  - To connect to a remote host via SSH: pass the nickname (e.g. `device_identifier="maclinux"`).
-  - *Response*: `{"id": "session-uuid", "name": "...", "status": "running", "device_id": "..."}`
+  - **Local terminal (no device registration required)**: Omit `device_identifier` (or pass `None`). TSM automatically spawns the local host OS shell (`cmd.exe` on Windows, `/bin/sh` on Linux/macOS) directly. You do NOT need to register or look for a local device.
+  - **Remote host via SSH**: Pass the registered nickname (e.g. `device_identifier="maclinux"`).
+  - *Response*: `{"id": "session-uuid", "name": "...", "status": "running", "device_id": null (local) or "uuid" (remote)}`
 - **`get_session(session_id)`**: Checks current status (`running`, `completed`, `failed`, `closed`, `lost`).
 - **`list_sessions()`**: Lists all active and past sessions.
 - **`write_session(session_id, data, is_sensitive=False)`**: Writes input/commands to the terminal stdin.
@@ -150,12 +150,14 @@ When the user asks you to check or run something on a remote server (e.g., `macl
 
 ---
 
-### Pattern B: Interactive Multi-Step Session
-When you need an ongoing shell session (e.g., entering a subshell, running Python REPL, or chained commands where environment variables must persist):
+### Pattern B: Local or Remote Interactive Multi-Step Session
+When you need an ongoing shell session (e.g., executing commands on the local machine or an interactive remote shell):
 
 1. **Create session:**
+   - **For local machine execution**: call `create_session(name="local-shell")` without `device_identifier` (no registration needed).
+   - **For remote machine execution**: call `create_session(name="remote-shell", device_identifier="maclinux")`.
    ```json
-   call create_session(name="interactive-shell")
+   call create_session(name="local-shell")
    ```
 2. **Send command:**
    ```json

@@ -126,11 +126,14 @@ Expõe as capacidades essenciais do Terminal Session Manager para agentes de int
 - **Servidor FastMCP (`terminal_session_manager.mcp.server`):**
   - Execução via transporte padrão `stdio`, compatível com Claude Desktop, Cursor, Antigravity e clientes MCP em geral.
   - Reutiliza diretamente as instâncias de domínio (`SessionService`, `JobService`, `DeviceService`, `SqliteEventRepository`), garantindo paridade total com a API HTTP.
-- **Ferramentas MCP Expostas (15 Tools):**
+- **Ferramentas MCP Expostas (17 Tools):**
   - **Sessões:** `create_session`, `get_session`, `list_sessions`, `write_session`, `read_session`, `close_session`.
   - **Histórico de Eventos:** `get_events` (paginação por cursor com `since_sequence` e `limit`).
   - **Jobs em Segundo Plano:** `submit_job`, `get_job`, `list_jobs`, `wait_job`, `cancel_job`.
   - **Catálogo e Resolução de Dispositivos:** `list_devices`, `get_device`, `resolve_device`.
+  - **Transferência SCP:** `scp_upload`, `scp_download`.
+- **Terminal Local Nativo (Sem Cadastro Prévio):**
+  - Para abrir uma sessão interativa no computador local onde o TSM roda, **não é necessário cadastrar nenhum dispositivo**. Omitir `device_identifier` ao chamar `create_session` (ou enviar `POST /sessions` com `{"name": "local"}`) dispara diretamente o `LocalProcessTransport` nativo do SO (`cmd.exe` no Windows ou `/bin/sh` no Linux/macOS). O catálogo de dispositivos é destinado a conexões remotas SSH.
 - **Garantias de Segurança:**
   - `resolve_device` resolve internamente parâmetros de conexão, validando existência e atividade do dispositivo, indicando `has_credential: true/false`, mas **omite estritamente segredos, senhas e chaves privadas** da resposta ao agente.
 - **Configuração em Clientes MCP:**

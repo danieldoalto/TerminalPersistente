@@ -180,9 +180,9 @@
     "semantic_hash": "3dca3633756a18481e2fda951b72ebbb"
   },
   "README.md": {
-    "mtime": 1789215625.614022,
-    "seen": 1789216105.1690116,
-    "ast_hash": "dddee0e1564dac1946583e394e69b966",
+    "mtime": 1789219120.365423,
+    "seen": 1789219469.7119997,
+    "ast_hash": "2e8aeb5eec61175d7c5ba8612cb54f02",
     "semantic_hash": ""
   },
   "reports/01-contrato-e-esqueleto.md": {
@@ -426,9 +426,9 @@
     "semantic_hash": ""
   },
   "help.md": {
-    "mtime": 1789215638.886903,
-    "seen": 1789216105.1690135,
-    "ast_hash": "feac750905fe7dbe1d50576e54729f54",
+    "mtime": 1789219147.252983,
+    "seen": 1789219469.7120013,
+    "ast_hash": "d711cd6d16c43b35462ceeb62f7aa12a",
     "semantic_hash": ""
   },
   "reports/09-ssh.md": {
@@ -444,15 +444,15 @@
     "semantic_hash": ""
   },
   ".agents/skills/terminal-session-manager/SKILL.md": {
-    "mtime": 1789211243.1850808,
-    "seen": 1789211421.7617664,
-    "ast_hash": "8f3d903008c0a22b36092b8eecf73f3a",
+    "mtime": 1789219182.8768795,
+    "seen": 1789219469.711997,
+    "ast_hash": "d7cbfbddb0813445248ff180d1788af1",
     "semantic_hash": ""
   },
   "skill.md": {
-    "mtime": 1789215649.7734146,
-    "seen": 1789216105.1690216,
-    "ast_hash": "8f3d903008c0a22b36092b8eecf73f3a",
+    "mtime": 1789219169.369228,
+    "seen": 1789219469.7120101,
+    "ast_hash": "d7cbfbddb0813445248ff180d1788af1",
     "semantic_hash": ""
   },
   "src/terminal_session_manager/services/scp_service.py": {
