@@ -213,11 +213,33 @@ curl -X GET http://127.0.0.1:8000/devices/roteador-borda/resolve
 }
 ```
 
+#### 9. Transferência de Arquivos via SCP (Upload e Download)
+```bash
+# Upload de arquivo local para o dispositivo remoto
+curl -X POST http://127.0.0.1:8000/scp/upload \
+  -H "Content-Type: application/json" \
+  -d '{
+    "device": "roteador-borda",
+    "local_path": "C:/backups/config.boot",
+    "remote_path": "/etc/config.boot"
+  }'
+
+# Download de arquivo remoto para o computador local
+curl -X POST http://127.0.0.1:8000/scp/download \
+  -H "Content-Type: application/json" \
+  -d '{
+    "device": "roteador-borda",
+    "remote_path": "/var/log/messages",
+    "local_path": "C:/logs/router_messages.log"
+  }'
+```
+*A transferência é disparada como um `Job` assíncrono em segundo plano (HTTP 202).*
+
 ---
 
 ## 5. Usando com Agentes via MCP
 
-O Terminal Session Manager expõe 15 ferramentas nativas via protocolo **Model Context Protocol (MCP)**, permitindo que agentes LLM operem terminais com segurança.
+O Terminal Session Manager expõe 17 ferramentas nativas via protocolo **Model Context Protocol (MCP)**, permitindo que agentes LLM operem terminais e transfiram arquivos com segurança.
 
 ### 5.1. Configuração no Claude Desktop
 
@@ -242,9 +264,9 @@ Edite o arquivo de configuração do Claude Desktop (`%APPDATA%\Claude\claude_de
 }
 ```
 
-### 5.2. Configuração no Cursor ou Antigravity IDE
+### 5.2. Configuração no Cursor / Antigravity
 
-Adicione a definição abaixo ao seu arquivo `mcp_config.json`:
+Em `.agents/mcp_config.json`:
 
 ```json
 {
@@ -281,6 +303,8 @@ Adicione a definição abaixo ao seu arquivo `mcp_config.json`:
 | **Dispositivos** | `list_devices` | Lista os dispositivos cadastrados no catálogo |
 | | `get_device` | Consulta metadados públicos de um dispositivo por nickname |
 | | `resolve_device` | Resolve parâmetros de conexão **sem retornar senhas ao agente** |
+| **Arquivos (SCP)** | `scp_upload` | Envia arquivo local para dispositivo remoto como job |
+| | `scp_download` | Baixa arquivo de dispositivo remoto para storage local |
 
 ---
 
@@ -327,3 +351,22 @@ curl -H "Authorization: Bearer meu-segredo-de-acesso" http://127.0.0.1:8000/sess
 
 ### Onde os dados ficam gravados?
 Por padrão, o banco de dados SQLite é mantido em `.tsm/tsm.db`. Ele pode ser movido ou configurado via `TSM_DB_PATH`.
+
+### Como gerenciar dispositivos, credenciais e transferências SCP de forma interativa?
+Use o utilitário interativo para cadastrar, listar, editar, testar conexão, gerar chaves SSH, transferir arquivos ou apagar dispositivos:
+```bash
+uv run python scripts/manage_devices.py
+```
+O script oferece:
+- Cadastro e edição com suporte a senhas protegidas e chaves privadas (Ed25519/RSA);
+- Teste de conexão SSH com diagnóstico detalhado em tempo real;
+- Gerador de chaves SSH com texto pronto para cópia da chave pública e instruções de instalação;
+- **Opção 9: Transferência e teste de arquivos SCP**, permitindo uploads, downloads e um teste rápido de integridade SCP com o host remoto sem precisar escrever código.
+
+### Como transferir arquivos entre o computador local e os dispositivos remotos?
+Existem 3 formas seguras e padronizadas no TSM:
+1. **Pelo utilitário interativo:** Execute `uv run python scripts/manage_devices.py`, selecione a opção `9` e escolha Upload, Download ou Teste Rápido.
+2. **Pela API HTTP REST:** Envie uma requisição `POST /scp/upload` ou `POST /scp/download` informando o nickname do dispositivo (retorna `HTTP 202` com o `Job` assíncrono criado).
+3. **Por Agentes Inteligentes via MCP:** O agente invoca a ferramenta `scp_upload` ou `scp_download` informando apenas o nickname do dispositivo (ex: `"maclinux"`), acompanhando o progresso através de `wait_job`. As credenciais e chaves são resolvidas internamente pelo cofre criptografado sem exposição.
+
+

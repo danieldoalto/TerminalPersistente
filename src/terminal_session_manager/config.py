@@ -65,6 +65,16 @@ class HistoryConfig:
 
 
 @dataclass
+class SSHConfig:
+    """SSH transport connection and host key verification settings."""
+
+    known_hosts_path: str | None = None
+    strict_host_key_checking: bool = True
+    connect_timeout: float = 10.0
+    default_port: int = 22
+
+
+@dataclass
 class TSMConfig:
     """Aggregated configuration root for Terminal Session Manager."""
 
@@ -74,6 +84,7 @@ class TSMConfig:
     sessions: SessionsConfig = field(default_factory=SessionsConfig)
     jobs: JobsConfig = field(default_factory=JobsConfig)
     history: HistoryConfig = field(default_factory=HistoryConfig)
+    ssh: SSHConfig = field(default_factory=SSHConfig)
 
 
 def validate_config(config: TSMConfig) -> None:
@@ -114,6 +125,16 @@ def validate_config(config: TSMConfig) -> None:
         raise ConfigurationError(
             f"history.max_event_limit ({config.history.max_event_limit}) cannot be smaller than "
             f"default_event_limit ({config.history.default_event_limit})."
+        )
+
+    # SSH validations
+    if not (1 <= config.ssh.default_port <= 65535):
+        raise ConfigurationError(
+            f"Invalid ssh.default_port: {config.ssh.default_port}. Must be between 1 and 65535."
+        )
+    if config.ssh.connect_timeout <= 0:
+        raise ConfigurationError(
+            f"Invalid ssh.connect_timeout: {config.ssh.connect_timeout}. Must be positive."
         )
 
 
@@ -216,6 +237,18 @@ def load_config(config_path: str | Path | None = None) -> TSMConfig:
             if "max_event_limit" in history_data:
                 config.history.max_event_limit = int(history_data["max_event_limit"])
 
+        # SSH section
+        ssh_data = data.get("ssh", {})
+        if isinstance(ssh_data, dict):
+            if "known_hosts_path" in ssh_data and ssh_data["known_hosts_path"]:
+                config.ssh.known_hosts_path = str(ssh_data["known_hosts_path"])
+            if "strict_host_key_checking" in ssh_data:
+                config.ssh.strict_host_key_checking = _parse_bool(ssh_data["strict_host_key_checking"])
+            if "connect_timeout" in ssh_data:
+                config.ssh.connect_timeout = float(ssh_data["connect_timeout"])
+            if "default_port" in ssh_data:
+                config.ssh.default_port = int(ssh_data["default_port"])
+
     # 2. Apply environment variable overrides (highest precedence)
     if "TSM_SERVER_HOST" in os.environ:
         config.server.host = os.environ["TSM_SERVER_HOST"]
@@ -240,6 +273,28 @@ def load_config(config_path: str | Path | None = None) -> TSMConfig:
 
     if "TSM_REQUIRE_AUTH" in os.environ:
         config.security.require_auth = _parse_bool(os.environ["TSM_REQUIRE_AUTH"])
+
+    if "TSM_SSH_KNOWN_HOSTS" in os.environ:
+        config.ssh.known_hosts_path = os.environ["TSM_SSH_KNOWN_HOSTS"]
+
+    if "TSM_SSH_STRICT_HOST_KEY_CHECKING" in os.environ:
+        config.ssh.strict_host_key_checking = _parse_bool(os.environ["TSM_SSH_STRICT_HOST_KEY_CHECKING"])
+
+    if "TSM_SSH_CONNECT_TIMEOUT" in os.environ:
+        try:
+            config.ssh.connect_timeout = float(os.environ["TSM_SSH_CONNECT_TIMEOUT"])
+        except ValueError as err:
+            raise ConfigurationError(
+                f"Invalid TSM_SSH_CONNECT_TIMEOUT value: {os.environ['TSM_SSH_CONNECT_TIMEOUT']}. Must be float."
+            ) from err
+
+    if "TSM_SSH_DEFAULT_PORT" in os.environ:
+        try:
+            config.ssh.default_port = int(os.environ["TSM_SSH_DEFAULT_PORT"])
+        except ValueError as err:
+            raise ConfigurationError(
+                f"Invalid TSM_SSH_DEFAULT_PORT value: {os.environ['TSM_SSH_DEFAULT_PORT']}. Must be integer."
+            ) from err
 
     # 3. Validate final consolidated configuration
     validate_config(config)

@@ -26,6 +26,7 @@ def get_openapi_spec() -> dict[str, Any]:
             {"name": "Events", "description": "Cursor-paginated historical event stream"},
             {"name": "Jobs", "description": "Asynchronous background command execution"},
             {"name": "Devices", "description": "Device inventory and safe connection resolution"},
+            {"name": "SCP", "description": "Secure file copy transfers to and from remote devices"},
             {"name": "Documentation", "description": "API discovery and documentation"},
         ],
         "components": {
@@ -238,6 +239,30 @@ def get_openapi_spec() -> dict[str, Any]:
                         },
                         "credential_ref_id": {"type": "string", "nullable": True},
                         "options": {"type": "object"},
+                    },
+                },
+                "SCPUploadRequest": {
+                    "type": "object",
+                    "required": ["device", "local_path", "remote_path"],
+                    "properties": {
+                        "device": {"type": "string", "description": "Device name or UUID"},
+                        "local_path": {"type": "string", "description": "Local file path to upload"},
+                        "remote_path": {"type": "string", "description": "Destination file path on remote host"},
+                        "session_id": {"type": "string", "nullable": True},
+                        "timeout": {"type": "number", "default": 30.0},
+                        "metadata": {"type": "object", "default": {}},
+                    },
+                },
+                "SCPDownloadRequest": {
+                    "type": "object",
+                    "required": ["device", "remote_path", "local_path"],
+                    "properties": {
+                        "device": {"type": "string", "description": "Device name or UUID"},
+                        "remote_path": {"type": "string", "description": "Remote file path to download"},
+                        "local_path": {"type": "string", "description": "Destination file path on local host"},
+                        "session_id": {"type": "string", "nullable": True},
+                        "timeout": {"type": "number", "default": 30.0},
+                        "metadata": {"type": "object", "default": {}},
                     },
                 },
             },
@@ -546,6 +571,38 @@ def get_openapi_spec() -> dict[str, Any]:
                         "200": {"description": "Resolved connection metadata", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ResolvedConnection"}}}},
                         "400": {"description": "Device inactive or deleted", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
                         "404": {"description": "Device or credential not found", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+                    },
+                },
+            },
+            "/scp/upload": {
+                "post": {
+                    "tags": ["SCP"],
+                    "summary": "Submit an asynchronous SCP upload transfer",
+                    "description": "Uploads a local file to a remote SSH device identified by nickname or UUID as a background Job.",
+                    "requestBody": {
+                        "required": True,
+                        "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SCPUploadRequest"}}},
+                    },
+                    "responses": {
+                        "202": {"description": "Transfer job accepted and launched", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Job"}}}},
+                        "400": {"description": "Validation error or missing local file", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+                        "404": {"description": "Device not found", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+                    },
+                },
+            },
+            "/scp/download": {
+                "post": {
+                    "tags": ["SCP"],
+                    "summary": "Submit an asynchronous SCP download transfer",
+                    "description": "Downloads a remote file from an SSH device identified by nickname or UUID to local storage as a background Job.",
+                    "requestBody": {
+                        "required": True,
+                        "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SCPDownloadRequest"}}},
+                    },
+                    "responses": {
+                        "202": {"description": "Transfer job accepted and launched", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Job"}}}},
+                        "400": {"description": "Validation error or invalid destination", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+                        "404": {"description": "Device not found", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
                     },
                 },
             },

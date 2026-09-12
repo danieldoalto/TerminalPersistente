@@ -68,6 +68,7 @@ class TSMApplication:
             session_repo=self.session_repo,
             event_repo=self.event_repo,
             device_service=self.device_service,
+            ssh_config=self.config.ssh,
         )
 
         # 4. Job repository and execution service
@@ -76,7 +77,20 @@ class TSMApplication:
             job_repo=self.job_repo,
             event_repo=self.event_repo,
             session_repo=self.session_repo,
+            device_service=self.device_service,
+            ssh_config=self.config.ssh,
         )
+
+        # 5. SCP file transfer service
+        from terminal_session_manager.services.scp_service import SCPService
+        self.scp_service = SCPService(
+            device_service=self.device_service,
+            job_repo=self.job_repo,
+            event_repo=self.event_repo,
+            session_repo=self.session_repo,
+            ssh_config=self.config.ssh,
+        )
+        self.job_service.scp_service = self.scp_service
 
         self._is_started = False
 
@@ -119,6 +133,7 @@ class TSMApplication:
             job_service=self.job_service,
             device_service=self.device_service,
             event_repo=self.event_repo,
+            scp_service=self.scp_service,
             host=self.config.server.host,
             port=self.config.server.port,
             api_token=self.config.server.api_token,
@@ -133,6 +148,7 @@ class TSMApplication:
             job_service=self.job_service,
             device_service=self.device_service,
             event_repo=self.event_repo,
+            scp_service=self.scp_service,
             storage=self.storage,
             config=self.config,
             name=name,

@@ -11,6 +11,7 @@ from terminal_session_manager.config import (
     SecurityConfig,
     ServerConfig,
     SessionsConfig,
+    SSHConfig,
     StorageConfig,
     TSMConfig,
     load_config,
@@ -72,7 +73,7 @@ from terminal_session_manager.services import (
     ResolvedConnection,
     SessionService,
 )
-from terminal_session_manager.transports import LocalProcessTransport
+from terminal_session_manager.transports import LocalProcessTransport, SSHTransport
 
 __all__ = [
     "__version__",
@@ -120,6 +121,8 @@ __all__ = [
     "SqliteJobRepository",
     "SqliteSessionRepository",
     "SqliteStorage",
+    "SSHConfig",
+    "SSHTransport",
     "TSMApplication",
     "TSMConfig",
     "TSMRequestHandler",

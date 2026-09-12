@@ -9,7 +9,9 @@ authors = [
 requires-python = ">=3.11"
 dependencies = [
     "fastmcp>=4.0.3",
+    "paramiko>=3.5.0",
     "pyyaml>=6.0.2",
+    "scp>=0.15.0",
 ]
 
 [project.scripts]

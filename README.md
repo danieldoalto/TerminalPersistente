@@ -224,21 +224,86 @@ uv run terminal-session-manager status
 # Ponto de entrada direto do MCP
 uv run terminal-session-manager-mcp
 
+# Gerenciador interativo de dispositivos (SSH, chaves, diagnóstico e transferências SCP)
+uv run python scripts/manage_devices.py
+
 # Verificar versão instalada
 uv run terminal-session-manager --version
 ```
 
 ---
 
+## Etapa 8 — Transporte SSH
+
+Implementa conexão e execução remota SSH para dispositivos cadastrados, reutilizando o contrato `TerminalTransport`, `LocalSession`, `DeviceService`, `CredentialResolver`, `JobService`, API HTTP e FastMCP:
+
+- **Adaptador SSH Pluggable (`SSHTransport` em `transports/ssh.py`):**
+  - Implementa o protocolo `TerminalTransport` (`open`, `read`, `read_stderr`, `write`, `resize`, `close`, `is_alive`, `exit_code`) utilizando `paramiko>=3.5.0`.
+  - Suporte a autenticação por senha ou chave privada (RSA, Ed25519, ECDSA) a partir de dados resolvidos em memória pelo `DeviceService` / `ProtectedLocalCredentialStore`.
+  - Modo interativo (`invoke_shell` com PTY) para sessões de terminal contínuas e modo de execução de comando (`exec_command`) para jobs remotos.
+  - Verificação estrita de host keys contra `known_hosts` (`paramiko.RejectPolicy`), rejeitando silenciosamente qualquer host não confiável por padrão em modo seguro.
+- **Integração de Sessões e Jobs Remotos:**
+  - `ConnectionMethod.SSH`: Dispositivos registrados com método SSH têm o transporte `SSHTransport` instanciado automaticamente ao criar a sessão ou submeter um job informando apenas o nickname do dispositivo.
+  - Mascaramento garantido: senhas e tokens resolvidos são proativamente censurados (`[REDACTED]`) no histórico de eventos persistidos no SQLite.
+  - Falhas de rede, recusa de chave de host e erros de autenticação resultam em estados previsíveis (`FAILED`) sem vazar credenciais em mensagens de erro ou logs.
+
+---
+
+## Etapa 9 — Transferência SCP
+
+Implementa suporte modular a transferências seguras de arquivos entre o host TSM e dispositivos SSH remotos, utilizando a biblioteca `scp>=0.15.0` integrada à infraestrutura existente:
+
+- **Serviço Modular (`SCPService` em `services/scp_service.py`):**
+  - Desacoplado de `TerminalTransport`, tratando transferências de arquivos com semântica dedicada.
+  - Suporta operações de `upload` (local -> remoto) e `download` (remoto -> local).
+  - Cada transferência é registrada e gerenciada como um `Job` assíncrono persistente no SQLite, emitindo eventos de auditoria sequenciados (`STATE_CHANGE`, `STDOUT`, `STDERR`).
+  - Suporta cancelamento limpo (`cancel_transfer`) e timeouts de transferência com transição de status determinística (`JobStatus.CANCELLED`, `JobStatus.TIMEOUT`).
+  - Verificação estrita de `known_hosts` e `strict_host_key_checking`, validação de integridade de caminhos locais e remotos e sanitização de segredos em qualquer saída ou erro.
+- **Endpoints na API HTTP REST:**
+  - `POST /scp/upload`: Dispara transferência de envio de arquivo local para destino remoto.
+  - `POST /scp/download`: Dispara transferência de recebimento de arquivo remoto para storage local.
+
+```bash
+# Exemplo de Upload via cURL (retorna HTTP 202 com os metadados do Job)
+curl -X POST http://127.0.0.1:8000/scp/upload \
+  -H "Content-Type: application/json" \
+  -d '{
+    "device": "maclinux",
+    "local_path": "C:/dados/config.yml",
+    "remote_path": "/tmp/config.yml",
+    "timeout": 30.0
+  }'
+
+# Exemplo de Download via cURL
+curl -X POST http://127.0.0.1:8000/scp/download \
+  -H "Content-Type: application/json" \
+  -d '{
+    "device": "maclinux",
+    "remote_path": "/etc/os-release",
+    "local_path": "C:/dados/os-release.txt",
+    "timeout": 30.0
+  }'
+
+# Acompanhar conclusão do Job de transferência
+curl http://127.0.0.1:8000/jobs/{job_id}
+```
+
+- **Ferramentas FastMCP para Agentes (17 Tools):**
+  - `scp_upload` e `scp_download`: Permitem a agentes LLM enviar e baixar arquivos em máquinas remotas informando apenas o nickname do dispositivo (ex: `maclinux`).
+- **Gerenciador Interativo (`scripts/manage_devices.py`):**
+  - Opção `9) Transferência e teste de arquivos SCP (Upload / Download)` no menu interativo para transferir arquivos e executar teste rápido de conectividade SCP sem precisar escrever código.
+
+---
+
 ## Testes
 
-A suíte de testes unitários valida modelos, transições de estado permitidas e rejeitadas, ordenação de eventos e conformidade dos contratos:
+A suíte de testes automatizados valida modelos, transportes locais e SSH, transferências SCP, persistência durável, ciclo de vida de jobs, catálogo e resolução de dispositivos, autenticação e documentação OpenAPI:
 
 ```bash
 uv run pytest -v
 ```
 
-Todos os testes são autossuficientes e executam sem qualquer dependência de rede, processos externos ou banco de dados.
+Todos os 150 testes são autossuficientes e executam sem qualquer dependência de hardware externo, portas de rede abertas ou servidores SSH físicos (utilizando mocks de cliente Paramiko e SCPClient).
 
 ---
 
@@ -248,40 +313,49 @@ Todos os testes são autossuficientes e executam sem qualquer dependência de re
 .
 ├── pyproject.toml                         # Configuração uv e dependências
 ├── README.md                              # Documentação de uso e instalação
+├── help.md                                # Guia operacional completo
+├── skill.md                               # Especificação das ferramentas FastMCP para agentes
 ├── spec.md                                # Especificação completa do produto
+├── scripts/
+│   └── manage_devices.py                  # Gerenciador CLI interativo (CRUD, SSH, chaves, SCP)
 ├── reports/
 │   ├── 01-contrato-e-esqueleto.md         # Relatório da Etapa 0
 │   ├── 02-sessao-local.md                 # Relatório da Etapa 1
 │   ├── 03-persistencia-e-historico.md     # Relatório da Etapa 2
-│   └── 04-jobs-assincronos.md             # Relatório da Etapa 3
+│   ├── 04-jobs-assincronos.md             # Relatório da Etapa 3
+│   ├── 05-catalogo-dispositivos.md        # Relatório da Etapa 4
+│   ├── 06-api-http.md                     # Relatório da Etapa 5
+│   ├── 07-mcp.md                          # Relatório da Etapa 6
+│   ├── 08-transporte-ssh.md               # Relatório da Etapa 8
+│   └── 09-scp.md                          # Relatório da Etapa 9 (Transferência SCP)
 ├── src/
 │   └── terminal_session_manager/
 │       ├── __init__.py                    # Exportações públicas de domínio
 │       ├── errors.py                      # Exceções de domínio e transporte
 │       ├── main.py                        # Ponto de entrada CLI
+│       ├── api/                           # API HTTP REST e OpenAPI
+│       │   ├── handler.py                 # Handlers HTTP (/sessions, /jobs, /devices, /scp)
+│       │   ├── openapi.py                 # Esquemas e especificação OpenAPI
+│       │   └── server.py                  # Servidor HTTP multithread com autenticação
+│       ├── mcp/                           # Servidor FastMCP
+│       │   └── server.py                  # 17 ferramentas MCP para agentes LLM
 │       ├── models/                        # Entidades e máquinas de estado
-│       │   ├── __init__.py
 │       │   ├── credential.py              # CredentialRef, CredentialType
 │       │   ├── device.py                  # Device, DeviceType, ConnectionMethod
 │       │   ├── event.py                   # Event, EventType
 │       │   ├── job.py                     # Job, JobStatus, JOB_TRANSITIONS
 │       │   └── session.py                 # Session, SessionStatus, SESSION_TRANSITIONS
-│       ├── interfaces/                    # Contratos estruturais (Protocols)
-│       │   ├── __init__.py
-│       │   ├── credentials.py             # CredentialResolver
-│       │   ├── device.py                  # DeviceRepository
-│       │   ├── persistence.py             # SessionRepository, JobRepository, EventRepository
-│       │   └── transport.py               # TerminalTransport
 │       ├── transports/                    # Adaptadores de transporte
-│       │   ├── __init__.py
-│       │   └── local_process.py           # LocalProcessTransport (subprocess + non-blocking queue)
-│       ├── services/                      # Orquestradores de alto nível
-│       │   ├── __init__.py
+│       │   ├── local_process.py           # LocalProcessTransport (subprocess + non-blocking queue)
+│       │   └── ssh.py                     # SSHTransport (Paramiko SSH interativo e comando)
+│       ├── services/                      # Orquestradores de domínio
+│       │   ├── device_service.py          # DeviceService (catálogo e resolução de dispositivos)
 │       │   ├── job_service.py             # JobService (execução assíncrona em background)
-│       │   └── local_session.py           # LocalSession controller
+│       │   ├── local_session.py           # LocalSession controller
+│       │   └── scp_service.py             # SCPService (upload/download assíncrono via SCP)
 │       └── persistence/                   # Repositórios duráveis (SQLite)
-│           ├── __init__.py
-│           └── sqlite.py                  # SqliteStorage, Repositories
+│           ├── sqlite.py                  # SqliteStorage, Repositories
+│           └── protected_store.py         # ProtectedLocalCredentialStore (cofre criptografado)
 └── tests/
     ├── test_contracts.py                  # Verificação dos protocolos em memória
     ├── test_device_and_credential.py      # Testes de Device e CredentialRef
@@ -290,6 +364,10 @@ Todos os testes são autossuficientes e executam sem qualquer dependência de re
     ├── test_job_service.py                # Testes de JobService assíncrono
     ├── test_local_session.py              # Testes do controlador LocalSession
     ├── test_local_transport.py            # Testes do adaptador LocalProcessTransport
+    ├── test_ssh_transport.py              # Testes do adaptador SSHTransport
+    ├── test_scp_service.py                # Testes do serviço SCPService
+    ├── test_api_devices.py                # Testes de API HTTP para dispositivos
+    ├── test_api_scp.py                    # Testes de API HTTP e MCP para SCP
     ├── test_persistence_lifecycle.py      # Testes de reinício, saída volumosa e segredos
     ├── test_session.py                    # Testes de Session e máquina de estados
     └── test_sqlite_persistence.py         # Testes dos repositórios SQLite

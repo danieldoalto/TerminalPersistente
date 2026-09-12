@@ -22,6 +22,7 @@ class APIServer:
         job_service: JobService,
         device_service: DeviceService,
         event_repo: EventRepository,
+        scp_service: Any | None = None,
         host: str = "127.0.0.1",
         port: int = 0,
         api_token: str | None = None,
@@ -31,6 +32,7 @@ class APIServer:
         self.job_service = job_service
         self.device_service = device_service
         self.event_repo = event_repo
+        self.scp_service = scp_service
         self.config = config
 
         if config is not None:
@@ -50,6 +52,7 @@ class APIServer:
         self._server.job_service = self.job_service  # type: ignore[attr-defined]
         self._server.device_service = self.device_service  # type: ignore[attr-defined]
         self._server.event_repo = self.event_repo  # type: ignore[attr-defined]
+        self._server.scp_service = self.scp_service  # type: ignore[attr-defined]
         self._server.api_token = self.api_token  # type: ignore[attr-defined]
 
         self._thread: threading.Thread | None = None

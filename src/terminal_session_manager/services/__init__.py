@@ -10,6 +10,10 @@ from terminal_session_manager.services.device_service import (
 )
 from terminal_session_manager.services.job_service import JobService
 from terminal_session_manager.services.local_session import LocalSession
+from terminal_session_manager.services.scp_service import (
+    SCPService,
+    SCPTransferDirection,
+)
 from terminal_session_manager.services.session_service import SessionService
 
 __all__ = [
@@ -19,5 +23,7 @@ __all__ = [
     "LocalSession",
     "ProtectedLocalCredentialStore",
     "ResolvedConnection",
+    "SCPService",
+    "SCPTransferDirection",
     "SessionService",
 ]

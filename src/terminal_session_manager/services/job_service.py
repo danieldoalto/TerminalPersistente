@@ -9,14 +9,22 @@ import threading
 import time
 from typing import Any, Sequence
 
+from terminal_session_manager.config import SSHConfig
 from terminal_session_manager.errors import JobNotFoundError, ValidationError
 from terminal_session_manager.interfaces.persistence import (
     EventRepository,
     JobRepository,
     SessionRepository,
 )
+from terminal_session_manager.models.credential import CredentialType
+from terminal_session_manager.models.device import ConnectionMethod
 from terminal_session_manager.models.event import Event, EventType
 from terminal_session_manager.models.job import Job, JobStatus
+from terminal_session_manager.services.device_service import (
+    DeviceService,
+    ResolvedConnection,
+)
+from terminal_session_manager.transports.ssh import SSHTransport
 
 
 def _terminate_proc(proc: subprocess.Popen[bytes]) -> None:
@@ -45,12 +53,19 @@ class JobService:
         job_repo: JobRepository,
         event_repo: EventRepository,
         session_repo: SessionRepository | None = None,
+        device_service: DeviceService | None = None,
+        ssh_config: SSHConfig | None = None,
+        scp_service: Any | None = None,
     ) -> None:
         self.job_repo = job_repo
         self.event_repo = event_repo
         self.session_repo = session_repo
+        self.device_service = device_service
+        self.ssh_config = ssh_config
+        self.scp_service = scp_service
 
         self._active_processes: dict[str, subprocess.Popen[bytes]] = {}
+        self._active_transports: dict[str, SSHTransport] = {}
         self._completion_events: dict[str, threading.Event] = {}
         self._cancel_flags: set[str] = set()
         self._lock = threading.Lock()
@@ -101,6 +116,12 @@ class JobService:
         if not command:
             raise ValidationError("command cannot be empty.")
 
+        # If device_id not specified, inherit from session if available
+        if device_id is None and self.session_repo:
+            sess = self.session_repo.get_by_id(session_id)
+            if sess and sess.device_id:
+                device_id = sess.device_id
+
         cmd_str = command if isinstance(command, str) else " ".join(command)
         job = Job(
             session_id=session_id,
@@ -149,7 +170,31 @@ class JobService:
             payload={"status": JobStatus.RUNNING.value},
         )
 
-        # 2. Spawn process
+        # Check if execution should be routed to an SSH remote device
+        resolved_conn: ResolvedConnection | None = None
+        if job.device_id and self.device_service:
+            try:
+                resolved_conn = self.device_service.resolve_connection(job.device_id)
+            except Exception as err:
+                job.transition_to(
+                    JobStatus.FAILED,
+                    failure_reason=f"Failed to resolve device for job: {err}",
+                )
+                self.job_repo.save(job)
+                self._record_event(
+                    session_id=job.session_id,
+                    job_id=job.id,
+                    event_type=EventType.STATE_CHANGE,
+                    payload={"status": JobStatus.FAILED.value, "error": str(err)},
+                )
+                self._signal_completion(job.id)
+                return
+
+        if resolved_conn and resolved_conn.connection_method == ConnectionMethod.SSH:
+            self._ssh_job_worker(job, command, inputs, timeout, resolved_conn)
+            return
+
+        # 2. Spawn local process
         try:
             proc = subprocess.Popen(
                 command,
@@ -300,6 +345,227 @@ class JobService:
 
         self._signal_completion(job.id)
 
+    def _ssh_job_worker(
+        self,
+        job: Job,
+        command: Sequence[str] | str,
+        inputs: list[str] | None,
+        timeout: float | None,
+        conn: ResolvedConnection,
+    ) -> None:
+        """Executes a job remotely over SSH, streaming events and capturing output."""
+        # 1. Prepare credentials and transport
+        cred_type = conn.credential_ref.credential_type if conn.credential_ref else None
+        password = None
+        private_key = None
+        secret = conn.secret
+        if cred_type == CredentialType.PASSWORD:
+            password = secret if isinstance(secret, str) else (secret.decode("utf-8", errors="ignore") if secret else None)
+        elif cred_type == CredentialType.SSH_KEY:
+            private_key = secret
+        elif secret:
+            sec_str = secret if isinstance(secret, str) else secret.decode("utf-8", errors="ignore")
+            if "PRIVATE KEY" in sec_str:
+                private_key = secret
+            else:
+                password = sec_str
+
+        known_hosts = self.ssh_config.known_hosts_path if self.ssh_config else None
+        strict_checking = self.ssh_config.strict_host_key_checking if self.ssh_config else True
+        conn_timeout = self.ssh_config.connect_timeout if self.ssh_config else 10.0
+
+        opts = conn.options
+        if "known_hosts_path" in opts:
+            known_hosts = opts["known_hosts_path"]
+        if "strict_host_key_checking" in opts:
+            strict_checking = bool(opts["strict_host_key_checking"])
+        if "connect_timeout" in opts:
+            conn_timeout = float(opts["connect_timeout"])
+
+        sensitive_tokens: list[str] = []
+        if conn.secret:
+            sec_val = conn.secret if isinstance(conn.secret, str) else conn.secret.decode("utf-8", errors="ignore")
+            if sec_val:
+                sensitive_tokens.append(sec_val)
+
+        def mask(text: str) -> tuple[str, bool]:
+            masked = text
+            did_mask = False
+            for tok in sensitive_tokens:
+                if tok and tok in masked:
+                    masked = masked.replace(tok, "[REDACTED]")
+                    did_mask = True
+            return masked, did_mask
+
+        transport = SSHTransport(
+            host=conn.host,
+            port=conn.port,
+            username=conn.default_user,
+            password=password,
+            private_key=private_key,
+            known_hosts_path=known_hosts,
+            strict_host_key_checking=strict_checking,
+            connect_timeout=conn_timeout,
+            command=command,
+            options=opts,
+        )
+
+        try:
+            transport.open()
+        except Exception as err:
+            job.transition_to(
+                JobStatus.FAILED,
+                failure_reason=f"Failed to establish SSH connection: {err}",
+            )
+            self.job_repo.save(job)
+            self._record_event(
+                session_id=job.session_id,
+                job_id=job.id,
+                event_type=EventType.STATE_CHANGE,
+                payload={"status": JobStatus.FAILED.value, "error": str(err)},
+            )
+            self._signal_completion(job.id)
+            return
+
+        with self._lock:
+            self._active_transports[job.id] = transport
+
+        # 2. Handle initial inputs
+        if inputs:
+            try:
+                for item in inputs:
+                    line = item if item.endswith("\n") else f"{item}\n"
+                    transport.write(line.encode("utf-8"))
+                    masked_input, was_masked = mask(item)
+                    self._record_event(
+                        session_id=job.session_id,
+                        job_id=job.id,
+                        event_type=EventType.STDIN,
+                        payload=masked_input,
+                        is_masked=was_masked,
+                    )
+            except Exception:
+                pass
+
+        # 3. Stream readers for stdout and stderr
+        stdout_chunks: list[str] = []
+        stderr_chunks: list[str] = []
+        start_time = time.monotonic()
+        timed_out = False
+        cancelled = False
+
+        while transport.is_alive():
+            with self._lock:
+                if job.id in self._cancel_flags:
+                    cancelled = True
+                    break
+
+            if timeout is not None and (time.monotonic() - start_time) >= timeout:
+                timed_out = True
+                break
+
+            out_chunk = transport.read(4096, timeout=0.05)
+            if out_chunk:
+                raw_text = out_chunk.decode("utf-8", errors="replace")
+                masked_text, was_masked = mask(raw_text)
+                stdout_chunks.append(masked_text)
+                self._record_event(
+                    session_id=job.session_id,
+                    job_id=job.id,
+                    event_type=EventType.STDOUT,
+                    payload=masked_text,
+                    is_masked=was_masked,
+                )
+
+            err_chunk = transport.read_stderr(4096, timeout=0.05)
+            if err_chunk:
+                raw_err = err_chunk.decode("utf-8", errors="replace")
+                masked_err, was_masked = mask(raw_err)
+                stderr_chunks.append(masked_err)
+                self._record_event(
+                    session_id=job.session_id,
+                    job_id=job.id,
+                    event_type=EventType.STDERR,
+                    payload=masked_err,
+                    is_masked=was_masked,
+                )
+
+        # Drain remaining output
+        while True:
+            out_chunk = transport.read(4096, timeout=0.05)
+            if not out_chunk:
+                break
+            raw_text = out_chunk.decode("utf-8", errors="replace")
+            masked_text, was_masked = mask(raw_text)
+            stdout_chunks.append(masked_text)
+            self._record_event(
+                session_id=job.session_id,
+                job_id=job.id,
+                event_type=EventType.STDOUT,
+                payload=masked_text,
+                is_masked=was_masked,
+            )
+
+        while True:
+            err_chunk = transport.read_stderr(4096, timeout=0.05)
+            if not err_chunk:
+                break
+            raw_err = err_chunk.decode("utf-8", errors="replace")
+            masked_err, was_masked = mask(raw_err)
+            stderr_chunks.append(masked_err)
+            self._record_event(
+                session_id=job.session_id,
+                job_id=job.id,
+                event_type=EventType.STDERR,
+                payload=masked_err,
+                is_masked=was_masked,
+            )
+
+        exit_code = transport.exit_code
+        transport.close()
+
+        with self._lock:
+            if job.id in self._cancel_flags:
+                cancelled = True
+
+        if cancelled:
+            job.transition_to(JobStatus.CANCELLED, failure_reason="Cancelled by user")
+        elif timed_out:
+            job.transition_to(
+                JobStatus.TIMEOUT,
+                failure_reason=f"Execution timed out after {timeout}s",
+            )
+        else:
+            job.exit_code = exit_code if exit_code is not None else 0
+            if job.exit_code == 0:
+                job.transition_to(JobStatus.COMPLETED)
+            else:
+                job.transition_to(
+                    JobStatus.FAILED,
+                    failure_reason=f"Remote process exited with non-zero status: {job.exit_code}",
+                )
+
+        job.stdout = "".join(stdout_chunks)
+        job.stderr = "".join(stderr_chunks)
+        self.job_repo.save(job)
+
+        self._record_event(
+            session_id=job.session_id,
+            job_id=job.id,
+            event_type=EventType.STATE_CHANGE,
+            payload={
+                "status": job.status.value,
+                "exit_code": job.exit_code,
+                "failure_reason": job.failure_reason,
+            },
+        )
+
+        with self._lock:
+            self._active_transports.pop(job.id, None)
+            self._cancel_flags.discard(job.id)
+
+        self._signal_completion(job.id)
+
     def get_job(self, job_id: str) -> Job | None:
         """Retrieves current job status from persistent repository."""
         return self.job_repo.get_by_id(job_id)
@@ -338,9 +604,17 @@ class JobService:
         with self._lock:
             self._cancel_flags.add(job_id)
             proc = self._active_processes.get(job_id)
+            transport = self._active_transports.get(job_id)
 
         if proc:
             _terminate_proc(proc)
+        if transport:
+            transport.close()
+        if self.scp_service:
+            try:
+                self.scp_service.cancel_transfer(job_id)
+            except Exception:
+                pass
 
         # Wait briefly for worker thread to persist CANCELLED status
         refreshed = self.wait_job(job_id, timeout=1.0)
@@ -364,7 +638,7 @@ class JobService:
         recovered_count = 0
         for job in unresolved:
             with self._lock:
-                if job.id in self._active_processes:
+                if job.id in self._active_processes or job.id in self._active_transports:
                     continue
 
             job.transition_to(

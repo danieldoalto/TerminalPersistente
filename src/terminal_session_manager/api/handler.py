@@ -402,6 +402,70 @@ class TSMRequestHandler(BaseHTTPRequestHandler):
                 self._send_json(job_to_dict(job))
                 return
 
+            # POST /scp/upload
+            if path == "/scp/upload":
+                device_identifier = body.get("device") or body.get("device_identifier")
+                if not device_identifier:
+                    raise ValidationError("Field 'device' (or 'device_identifier') is required.")
+                local_path = body.get("local_path")
+                if not local_path:
+                    raise ValidationError("Field 'local_path' is required.")
+                remote_path = body.get("remote_path")
+                if not remote_path:
+                    raise ValidationError("Field 'remote_path' is required.")
+
+                session_id = body.get("session_id")
+                timeout_val = body.get("timeout")
+                metadata = body.get("metadata")
+
+                scp_service = getattr(self.server, "scp_service", None)
+                if not scp_service:
+                    raise ValidationError("SCPService is not available on this server.")
+
+                job = scp_service.submit_transfer(
+                    device_identifier=device_identifier,
+                    direction="upload",
+                    local_path=local_path,
+                    remote_path=remote_path,
+                    session_id=session_id,
+                    timeout=float(timeout_val) if timeout_val is not None else None,
+                    metadata=metadata,
+                )
+                self._send_json(job_to_dict(job), status=202)
+                return
+
+            # POST /scp/download
+            if path == "/scp/download":
+                device_identifier = body.get("device") or body.get("device_identifier")
+                if not device_identifier:
+                    raise ValidationError("Field 'device' (or 'device_identifier') is required.")
+                remote_path = body.get("remote_path")
+                if not remote_path:
+                    raise ValidationError("Field 'remote_path' is required.")
+                local_path = body.get("local_path")
+                if not local_path:
+                    raise ValidationError("Field 'local_path' is required.")
+
+                session_id = body.get("session_id")
+                timeout_val = body.get("timeout")
+                metadata = body.get("metadata")
+
+                scp_service = getattr(self.server, "scp_service", None)
+                if not scp_service:
+                    raise ValidationError("SCPService is not available on this server.")
+
+                job = scp_service.submit_transfer(
+                    device_identifier=device_identifier,
+                    direction="download",
+                    local_path=local_path,
+                    remote_path=remote_path,
+                    session_id=session_id,
+                    timeout=float(timeout_val) if timeout_val is not None else None,
+                    metadata=metadata,
+                )
+                self._send_json(job_to_dict(job), status=202)
+                return
+
             # POST /devices
             if path == "/devices":
                 name = body.get("name")

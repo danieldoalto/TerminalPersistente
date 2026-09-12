@@ -1,8 +1,8 @@
 {
   "pyproject.toml": {
-    "mtime": 1789166790.5278275,
-    "seen": 1789167675.8169613,
-    "ast_hash": "c15be956fa55dfb7c703d0e5d9af3e8f",
+    "mtime": 1789208846.687909,
+    "seen": 1789211421.7616916,
+    "ast_hash": "546f85605d4241d85cc79283071fd4ed",
     "semantic_hash": ""
   },
   "src/terminal_session_manager/__init__.py": {
@@ -102,10 +102,10 @@
     "semantic_hash": "cae53d9424fda192bc69e6d09e3c30e2"
   },
   "src/terminal_session_manager/services/__init__.py": {
-    "mtime": 1789162245.1205738,
-    "seen": 1789165927.94735,
-    "ast_hash": "6f60cc9e774ba711c82379a8a9334d5f",
-    "semantic_hash": "6f60cc9e774ba711c82379a8a9334d5f"
+    "mtime": 1789208880.939914,
+    "seen": 1789211421.7617302,
+    "ast_hash": "89c15e9c43635b9dfeeb3d4360611342",
+    "semantic_hash": ""
   },
   "src/terminal_session_manager/services/local_session.py": {
     "mtime": 1789167107.6108794,
@@ -180,9 +180,9 @@
     "semantic_hash": "3dca3633756a18481e2fda951b72ebbb"
   },
   "README.md": {
-    "mtime": 1789167647.6052878,
-    "seen": 1789167675.8170238,
-    "ast_hash": "ff340a8dbfdc02753a41260c83723608",
+    "mtime": 1789211317.6182573,
+    "seen": 1789211421.761768,
+    "ast_hash": "e3844c170c02f69acd1f7828c8d9e832",
     "semantic_hash": ""
   },
   "reports/01-contrato-e-esqueleto.md": {
@@ -210,9 +210,9 @@
     "semantic_hash": ""
   },
   "src/terminal_session_manager/services/job_service.py": {
-    "mtime": 1789167211.2579591,
-    "seen": 1789167675.8169956,
-    "ast_hash": "b6a25aedbfb0d42458bbf0dfe983a29c",
+    "mtime": 1789208956.0408123,
+    "seen": 1789211421.7617333,
+    "ast_hash": "f744fa64e9465eb13881a39b82f2368e",
     "semantic_hash": ""
   },
   "tests/test_job_service.py": {
@@ -282,16 +282,16 @@
     "semantic_hash": "6b9e23917745c619e903feca6410da71"
   },
   "src/terminal_session_manager/api/handler.py": {
-    "mtime": 1789162823.4227235,
-    "seen": 1789165927.9464803,
-    "ast_hash": "f838026787036a554882964b387e0e70",
-    "semantic_hash": "f838026787036a554882964b387e0e70"
+    "mtime": 1789208977.103062,
+    "seen": 1789211421.7617064,
+    "ast_hash": "b0aedc9a98619fd6f9158104259a2dd5",
+    "semantic_hash": ""
   },
   "src/terminal_session_manager/api/server.py": {
-    "mtime": 1789164994.489683,
-    "seen": 1789165927.9464827,
-    "ast_hash": "27a674fd61bd35a91dd67480dcfbb151",
-    "semantic_hash": "27a674fd61bd35a91dd67480dcfbb151"
+    "mtime": 1789208915.7211347,
+    "seen": 1789211421.7617083,
+    "ast_hash": "cfba4bff85ff29cb6374f8c73090fab6",
+    "semantic_hash": ""
   },
   "src/terminal_session_manager/services/session_service.py": {
     "mtime": 1789167128.910432,
@@ -330,10 +330,10 @@
     "semantic_hash": ""
   },
   "src/terminal_session_manager/api/openapi.py": {
-    "mtime": 1789162789.0199378,
-    "seen": 1789165927.9464817,
-    "ast_hash": "09bdd314127bb04d110fe62a493f981b",
-    "semantic_hash": "09bdd314127bb04d110fe62a493f981b"
+    "mtime": 1789209023.614066,
+    "seen": 1789211421.7617075,
+    "ast_hash": "113e2f6c3ca79df51d6dd57999907659",
+    "semantic_hash": ""
   },
   "tests/test_api_docs.py": {
     "mtime": 1789162838.416788,
@@ -348,9 +348,9 @@
     "semantic_hash": "105ecfba280057146fd12900701f26d5"
   },
   "src/terminal_session_manager/mcp/server.py": {
-    "mtime": 1789167240.7795396,
-    "seen": 1789167675.8169847,
-    "ast_hash": "21e72de10832d293143746222f397148",
+    "mtime": 1789209058.49783,
+    "seen": 1789211421.7617211,
+    "ast_hash": "ee4cdfd6d497b2b75bc9f0f3a6f66f3c",
     "semantic_hash": ""
   },
   "tests/test_mcp_server.py": {
@@ -366,9 +366,9 @@
     "semantic_hash": ""
   },
   "src/terminal_session_manager/app.py": {
-    "mtime": 1789167224.8493512,
-    "seen": 1789167675.8169758,
-    "ast_hash": "ca2ab357b48bcf34675e19e211907967",
+    "mtime": 1789208965.6468399,
+    "seen": 1789211421.76171,
+    "ast_hash": "e696378c2fa2f14022118c4c3b8e62c6",
     "semantic_hash": ""
   },
   "src/terminal_session_manager/config.py": {
@@ -426,9 +426,9 @@
     "semantic_hash": ""
   },
   "help.md": {
-    "mtime": 1789168335.8361688,
-    "seen": 1789168462.1157453,
-    "ast_hash": "94bcbc684cc5e178f443ebf16eb41869",
+    "mtime": 1789211291.3202674,
+    "seen": 1789211421.7617695,
+    "ast_hash": "21ebe3ceb292a69ae11a02cfde35d2ba",
     "semantic_hash": ""
   },
   "reports/09-ssh.md": {
@@ -438,21 +438,45 @@
     "semantic_hash": ""
   },
   "scripts/manage_devices.py": {
-    "mtime": 1789175264.4437199,
-    "seen": 1789175334.5826776,
-    "ast_hash": "0edde8c8233b0a6c18a409bee8d97b0a",
+    "mtime": 1789175733.371035,
+    "seen": 1789175798.6243713,
+    "ast_hash": "444a5e64897147d04319230468b059a0",
     "semantic_hash": ""
   },
   ".agents/skills/terminal-session-manager/SKILL.md": {
-    "mtime": 1789169116.427788,
-    "seen": 1789175334.5827303,
-    "ast_hash": "d2af298899ea5c88e2069ccfebf7962d",
+    "mtime": 1789211243.1850808,
+    "seen": 1789211421.7617664,
+    "ast_hash": "8f3d903008c0a22b36092b8eecf73f3a",
     "semantic_hash": ""
   },
   "skill.md": {
-    "mtime": 1789169128.5661092,
-    "seen": 1789175334.5827415,
-    "ast_hash": "d2af298899ea5c88e2069ccfebf7962d",
+    "mtime": 1789211217.9513707,
+    "seen": 1789211421.7617786,
+    "ast_hash": "3c722d40c2355c008724619cb2e1b2fb",
+    "semantic_hash": ""
+  },
+  "src/terminal_session_manager/services/scp_service.py": {
+    "mtime": 1789210159.7373557,
+    "seen": 1789211421.761736,
+    "ast_hash": "0741800dfcaee12b1bc65b688ddf0f52",
+    "semantic_hash": ""
+  },
+  "tests/test_api_scp.py": {
+    "mtime": 1789211053.8188252,
+    "seen": 1789211421.7617462,
+    "ast_hash": "e65c00d60b38902cee7cfbbd0bf49ffe",
+    "semantic_hash": ""
+  },
+  "tests/test_scp_service.py": {
+    "mtime": 1789210381.6261806,
+    "seen": 1789211421.7617607,
+    "ast_hash": "643d2ae71b2414bf00774e458ae74272",
+    "semantic_hash": ""
+  },
+  "reports/09-scp.md": {
+    "mtime": 1789211341.1760702,
+    "seen": 1789211421.7617774,
+    "ast_hash": "7eb5327e0c12b043c3379481095e610b",
     "semantic_hash": ""
   }
 }

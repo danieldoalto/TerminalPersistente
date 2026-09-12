@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
+from terminal_session_manager.config import SSHConfig
 from terminal_session_manager.errors import TransportClosedError, TransportError
 from terminal_session_manager.interfaces.persistence import (
     EventRepository,
     SessionRepository,
 )
 from terminal_session_manager.interfaces.transport import TerminalTransport
+from terminal_session_manager.models.credential import CredentialType
+from terminal_session_manager.models.device import ConnectionMethod
 from terminal_session_manager.models.event import Event, EventType
 from terminal_session_manager.models.session import Session, SessionStatus
 from terminal_session_manager.services.device_service import (
@@ -17,10 +20,11 @@ from terminal_session_manager.services.device_service import (
     ResolvedConnection,
 )
 from terminal_session_manager.transports.local_process import LocalProcessTransport
+from terminal_session_manager.transports.ssh import SSHTransport
 
 
 class LocalSession:
-    """Orchestrates an interactive local terminal session.
+    """Orchestrates an interactive local or remote terminal session.
 
     Connects the high-level Session entity lifecycle to an underlying
     TerminalTransport. Supports optional persistence of session metadata and
@@ -38,14 +42,15 @@ class LocalSession:
         device_identifier: str | None = None,
         resolved_connection: ResolvedConnection | None = None,
         sensitive_tokens: list[str | bytes] | None = None,
+        ssh_config: SSHConfig | None = None,
     ) -> None:
         self.session = session or Session()
-        self.transport = transport or LocalProcessTransport()
         self.session_repo = session_repo
         self.event_repo = event_repo
         self.encoding = encoding
         self.device_service = device_service
         self.resolved_connection = resolved_connection
+        self.ssh_config = ssh_config
 
         # Resolve device if identifier and service are provided
         if self.resolved_connection is None and self.device_service and device_identifier:
@@ -53,6 +58,55 @@ class LocalSession:
 
         if self.resolved_connection is not None:
             self.session.device_id = self.resolved_connection.device_id
+
+        # Determine transport: injected, SSH, or LocalProcess
+        if transport is not None:
+            self.transport = transport
+        elif self.resolved_connection and self.resolved_connection.connection_method == ConnectionMethod.SSH:
+            cred_type = (
+                self.resolved_connection.credential_ref.credential_type
+                if self.resolved_connection.credential_ref
+                else None
+            )
+            password = None
+            private_key = None
+            secret = self.resolved_connection.secret
+            if cred_type == CredentialType.PASSWORD:
+                password = secret if isinstance(secret, str) else (secret.decode("utf-8", errors="ignore") if secret else None)
+            elif cred_type == CredentialType.SSH_KEY:
+                private_key = secret
+            elif secret:
+                sec_str = secret if isinstance(secret, str) else secret.decode("utf-8", errors="ignore")
+                if "PRIVATE KEY" in sec_str:
+                    private_key = secret
+                else:
+                    password = sec_str
+
+            known_hosts = self.ssh_config.known_hosts_path if self.ssh_config else None
+            strict_checking = self.ssh_config.strict_host_key_checking if self.ssh_config else True
+            timeout = self.ssh_config.connect_timeout if self.ssh_config else 10.0
+
+            opts = self.resolved_connection.options
+            if "known_hosts_path" in opts:
+                known_hosts = opts["known_hosts_path"]
+            if "strict_host_key_checking" in opts:
+                strict_checking = bool(opts["strict_host_key_checking"])
+            if "connect_timeout" in opts:
+                timeout = float(opts["connect_timeout"])
+
+            self.transport = SSHTransport(
+                host=self.resolved_connection.host,
+                port=self.resolved_connection.port,
+                username=self.resolved_connection.default_user,
+                password=password,
+                private_key=private_key,
+                known_hosts_path=known_hosts,
+                strict_host_key_checking=strict_checking,
+                connect_timeout=timeout,
+                options=opts,
+            )
+        else:
+            self.transport = LocalProcessTransport()
 
         # Internal sensitive token tracking for output/input redaction
         self._sensitive_tokens: list[str] = []

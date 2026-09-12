@@ -5,6 +5,7 @@ from __future__ import annotations
 import threading
 from typing import Any
 
+from terminal_session_manager.config import SSHConfig
 from terminal_session_manager.errors import (
     SessionNotFoundError,
     TransportClosedError,
@@ -28,10 +29,12 @@ class SessionService:
         session_repo: SessionRepository,
         event_repo: EventRepository,
         device_service: DeviceService | None = None,
+        ssh_config: SSHConfig | None = None,
     ) -> None:
         self.session_repo = session_repo
         self.event_repo = event_repo
         self.device_service = device_service
+        self.ssh_config = ssh_config
         self._active_sessions: dict[str, LocalSession] = {}
         self._lock = threading.RLock()
 
@@ -53,6 +56,7 @@ class SessionService:
             event_repo=self.event_repo,
             device_service=self.device_service,
             device_identifier=device_identifier,
+            ssh_config=self.ssh_config,
         )
 
         if auto_start:

@@ -39,3 +39,14 @@ history:
   default_event_limit: 50
   # Limite teto permitido para paginação de eventos
   max_event_limit: 200
+
+ssh:
+  # Caminho do arquivo known_hosts para verificação estrita de host keys
+  known_hosts_path: ""
+  # Modo seguro: rejeita conexões para hosts cuja chave pública não seja previamente conhecida
+  strict_host_key_checking: true
+  # Timeout de conexão SSH em segundos
+  connect_timeout: 10.0
+  # Porta padrão para conexões SSH
+  default_port: 22
+

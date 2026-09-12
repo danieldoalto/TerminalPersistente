@@ -35,6 +35,7 @@ def create_mcp_server(
     job_service: JobService | None = None,
     device_service: DeviceService | None = None,
     event_repo: EventRepository | None = None,
+    scp_service: Any | None = None,
     storage: SqliteStorage | None = None,
     db_path: str | None = None,
     config: TSMConfig | None = None,
@@ -58,14 +59,39 @@ def create_mcp_server(
         cred_store = ProtectedLocalCredentialStore(storage, master_key=master_key)
         device_service = DeviceService(repository=dev_repo, credential_resolver=cred_store)
 
+    ssh_cfg = config.ssh if config is not None else None
+
     if job_service is None and storage is not None and event_repo is not None:
         job_repo = SqliteJobRepository(storage)
         session_repo = SqliteSessionRepository(storage)
-        job_service = JobService(job_repo=job_repo, event_repo=event_repo, session_repo=session_repo)
+        job_service = JobService(
+            job_repo=job_repo,
+            event_repo=event_repo,
+            session_repo=session_repo,
+            device_service=device_service,
+            ssh_config=ssh_cfg,
+        )
 
     if session_service is None and storage is not None and event_repo is not None:
         session_repo = SqliteSessionRepository(storage)
-        session_service = SessionService(session_repo=session_repo, event_repo=event_repo, device_service=device_service)
+        session_service = SessionService(
+            session_repo=session_repo,
+            event_repo=event_repo,
+            device_service=device_service,
+            ssh_config=ssh_cfg,
+        )
+
+    if scp_service is None and storage is not None and event_repo is not None and device_service is not None:
+        from terminal_session_manager.services.scp_service import SCPService
+        job_repo = SqliteJobRepository(storage)
+        session_repo = SqliteSessionRepository(storage)
+        scp_service = SCPService(
+            device_service=device_service,
+            job_repo=job_repo,
+            event_repo=event_repo,
+            session_repo=session_repo,
+            ssh_config=ssh_cfg,
+        )
 
     assert session_service is not None
     assert job_service is not None
@@ -324,6 +350,66 @@ def create_mcp_server(
                 "credential_ref_id": resolved.credential_ref.id if resolved.credential_ref else None,
                 "options": resolved.options,
             }
+        except DomainError as err:
+            raise ValueError(str(err)) from err
+
+    # -------------------------------------------------------------------------
+    # SCP File Transfer Tools
+    # -------------------------------------------------------------------------
+
+    @mcp.tool
+    def scp_upload(
+        device: str,
+        local_path: str,
+        remote_path: str,
+        session_id: str | None = None,
+        timeout: float = 30.0,
+    ) -> dict[str, Any]:
+        """Uploads a local file to a remote SSH device identified by nickname or UUID.
+
+        Runs as an asynchronous background Job. Returns the created Job metadata.
+        Use wait_job or get_job with job_id to monitor transfer status and completion.
+        """
+        if scp_service is None:
+            raise ValueError("SCPService is not configured on this MCP server.")
+        try:
+            job = scp_service.submit_transfer(
+                device_identifier=device,
+                direction="upload",
+                local_path=local_path,
+                remote_path=remote_path,
+                session_id=session_id,
+                timeout=timeout,
+            )
+            return job_to_dict(job)
+        except DomainError as err:
+            raise ValueError(str(err)) from err
+
+    @mcp.tool
+    def scp_download(
+        device: str,
+        remote_path: str,
+        local_path: str,
+        session_id: str | None = None,
+        timeout: float = 30.0,
+    ) -> dict[str, Any]:
+        """Downloads a remote file from an SSH device identified by nickname or UUID.
+
+        Runs as an asynchronous background Job. Returns the created Job metadata.
+        Use wait_job or get_job with job_id to monitor transfer status and completion.
+        """
+        if scp_service is None:
+            raise ValueError("SCPService is not configured on this MCP server.")
+        try:
+            job = scp_service.submit_transfer(
+                device_identifier=device,
+                direction="download",
+                local_path=local_path,
+                remote_path=remote_path,
+                session_id=session_id,
+                timeout=timeout,
+            )
+            return job_to_dict(job)
         except DomainError as err:
             raise ValueError(str(err)) from err
 
